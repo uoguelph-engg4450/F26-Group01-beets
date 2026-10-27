@@ -208,7 +208,12 @@ class Candidate:
         reformat = False
         if plugin.cover_format:
             fmt = ArtResizer.shared.get_format(self.path)
-            reformat = fmt != plugin.cover_format
+            formats = {"JPG": "JPEG"}
+            current = (fmt or "").upper()
+            desired = plugin.cover_format.upper()
+            reformat = formats.get(current, current) != formats.get(
+                desired, desired
+            )
             if reformat:
                 self._log.debug(
                     "image needs reformatting: {} -> {.cover_format}",

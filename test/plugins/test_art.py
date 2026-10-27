@@ -23,7 +23,7 @@ from beets.test.helper import (
     is_importable,
 )
 from beets.util import clean_module_tempdir
-from beets.util.artresizer import ArtResizer
+from beets.util.artresizer import ArtResizer, PILBackend
 from beetsplug import fetchart
 
 if TYPE_CHECKING:
@@ -1082,6 +1082,60 @@ class TestAlbumArtPerformOperation(AlbumArtOperationMixin):
         assert self.get_album_art()
         deinterlacer_mock.assert_called_once()
         resizer_mock.assert_called_once()
+
+
+@pytest.mark.requires_import("PIL")
+class TestCoverFormat(UseThePlugin):
+    @pytest.fixture(autouse=True)
+    def pil_backend(self, monkeypatch):
+        monkeypatch.setattr(ArtResizer.shared, "local_method", PILBackend())
+
+    @pytest.mark.parametrize("desired", ["jpg", "jpeg", "JPEG", "JpEg"])
+    def test_already_jpeg(self, tmp_path, desired):
+        from PIL import Image
+
+        source = tmp_path / "cover.jpg"
+        Image.new("RGB", (32, 32)).save(source)
+        original = source.read_bytes()
+        self.plugin.cover_format = desired
+        candidate = fetchart.Candidate(
+            logger, "filesystem", os.fsencode(source)
+        )
+
+        with patch.object(ArtResizer.shared, "reformat") as reformat:
+            candidate.resize(self.plugin)
+
+        reformat.assert_not_called()
+        assert candidate.path == os.fsencode(source)
+        assert source.read_bytes() == original
+
+    @pytest.mark.parametrize("maxwidth", [0, 16])
+    @pytest.mark.parametrize("mode", ["RGB", "RGBA"])
+    def test_downloaded_png_to_jpeg(
+        self, tmp_path, requests_mock, maxwidth, mode
+    ):
+        from PIL import Image
+
+        source = tmp_path / "download.png"
+        Image.new(mode, (32, 32)).save(source)
+        url = "https://example.com/cover.jpg"
+        requests_mock.get(
+            url,
+            content=source.read_bytes(),
+            headers={"Content-Type": "image/jpeg"},
+        )
+        self.plugin.cover_format = "JPEG"
+        self.plugin.maxwidth = maxwidth
+        candidate = fetchart.Candidate(logger, "dummy", url=url)
+        remote = DummyRemoteArtSource(logger, self.plugin.config)
+        remote.fetch_image(candidate, self.plugin)
+        assert ArtResizer.shared.get_format(candidate.path) == "PNG"
+
+        candidate.resize(self.plugin)
+
+        with Image.open(candidate.path) as converted:
+            assert converted.format == "JPEG"
+            assert converted.size == (maxwidth or 32, maxwidth or 32)
 
 
 class TestDeprecatedConfig:

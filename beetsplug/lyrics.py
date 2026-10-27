@@ -18,6 +18,7 @@ from urllib.parse import quote, quote_plus, urlencode, urlparse
 import requests
 from bs4 import BeautifulSoup
 from confuse import Optional
+from requests.compat import json
 from unidecode import unidecode
 
 from beets import plugins, ui
@@ -232,7 +233,7 @@ class LyricsRequestHandler(RequestHandler):
     def handle_request(self) -> Iterator[None]:
         try:
             yield
-        except requests.JSONDecodeError:
+        except json.JSONDecodeError:
             self.warn("Could not decode response JSON data")
         except requests.RequestException as exc:
             self.warn("Request error: {}", exc)

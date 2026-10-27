@@ -223,6 +223,48 @@ class TestLyricsPlugin(LyricsPluginMixin):
         return "lrclib"
 
     @pytest.mark.parametrize(
+        "response, expected_log",
+        [
+            ({"status_code": 403}, "Request error:"),
+            ({"text": "not JSON"}, "Could not decode response JSON data"),
+            ({"exc": requests.exceptions.Timeout}, "Request error:"),
+        ],
+    )
+    def test_import_request_error_without_top_level_json_error(
+        self,
+        monkeypatch,
+        requests_mock,
+        lyrics_plugin,
+        caplog,
+        response,
+        expected_log,
+    ):
+        monkeypatch.delattr(requests, "JSONDecodeError", raising=False)
+        requests_mock.get(lyrics.LRCLib.SEARCH_URL, **response)
+        item = Item(artist="Artist", title="Song", lyrics="")
+        task = SimpleNamespace(imported_items=lambda: [item])
+
+        lyrics_plugin.imported(None, task)
+
+        assert item.lyrics == ""
+        assert any(expected_log in message for message in caplog.messages)
+
+    def test_failed_provider_falls_back(
+        self, monkeypatch, requests_mock, lyrics_plugin
+    ):
+        monkeypatch.delattr(requests, "JSONDecodeError", raising=False)
+        lyrics_plugin.config["sources"] = ["lrclib", "lrcmux"]
+        requests_mock.get(lyrics.LRCLib.SEARCH_URL, status_code=403)
+        requests_mock.get(
+            f"{lyrics.LRCMux.DEFAULT_URL}/get", text="Some lyrics"
+        )
+
+        result = lyrics_plugin.get_lyrics("Artist", "Song", "Album", 180)
+
+        assert result.text == "Some lyrics"
+        assert result.backend == "lrcmux"
+
+    @pytest.mark.parametrize(
         "request_kwargs, expected_log_match",
         [
             (
