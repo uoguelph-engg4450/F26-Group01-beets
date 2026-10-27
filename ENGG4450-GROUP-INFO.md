@@ -11,16 +11,7 @@
 
 ## Team members
 
-| Name | GitHub |
-| --- | --- |
-| Krish Patel | _not on file yet_ |
-| Herman Saini | _not on file yet_ |
-| Aaron Boodoosingh | _not on file yet_ |
-| Jared Duong | [@Jared06Duong](https://github.com/Jared06Duong) |
-| Abigail Jackson | _not on file yet_ |
-| Khoa Tran | [@SevenT1123](https://github.com/SevenT1123) |
 
-## How to work in this repository
 
 1. This repository is your group's own copy of beets. Do all of your work here. Never push to the base repository.
 2. Pick one issue from the base repository and record it in the table above. An issue is normally assigned to one group only, so confirm it with your teaching assistant first.
